@@ -9,8 +9,8 @@ int checkRegex(regex_t regex, char *check_string);
 struct CommandRegex compileAllCommandChecks();
 
 struct CommandRegex {
-    regex_t USER, PASS;
-    int user_len, pass_len;
+    regex_t USER, PASS, LS, PWD, CD;
+    int user_len, pass_len, ls_len, pwd_len, cd_len;
 };
 /* REGEX HELPERS END */
 
@@ -20,3 +20,5 @@ char* stripStartingChars(int num_chars, char* string);
 /* STRING HELPERS END */
 
 
+char *lsCommand(char *cwd);
+char *pwdCommand(char *cwd);

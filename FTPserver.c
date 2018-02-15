@@ -129,7 +129,62 @@ struct RuntimeVals prepareSelect(struct RuntimeVals runtime, struct SetupVals se
     return runtime;
 }
 
-struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct UserDB user_db, struct RuntimeVals runtime){
+struct RuntimeVals serverCommandCD(struct RuntimeVals runtime, int array_int, char* dir){
+    // First change to this users cwd
+    chdir(runtime.cwds[array_int]);
+    // Then change to the requested directory
+    int ret = chdir(dir);
+    if(ret == 0){ // If the directory is valid
+	char *tmp = (char *) malloc(sizeof(char) * 10000);
+	getcwd(tmp, 10000);
+	// Update CWD in our store
+	runtime.cwds[array_int] = tmp;
+	// Return the pwd command so they know where they changed to
+	runtime.response = pwdCommand(runtime.cwds[array_int]);
+    } else {
+	runtime.response = "Invalid command syntax or target directory!\n";
+    }
+    return runtime;
+}
+
+struct RuntimeVals passCommand(struct RuntimeVals runtime, int array_int, char* password){
+    // If this socket does not have a set user then tell them to set the user
+    if ( runtime.user_id[array_int] == -1){
+	runtime.response = "set USER first\n";
+    } else {
+	// The socket has an associated user so check pass	
+	// If the password is correctly associated
+	if(!strcmp(password, runtime.user_db.users[runtime.user_id[array_int]].password)){
+	    // Authenticate the user if the password is correct
+	    runtime.response = "Authentication complete\n";
+	    runtime.authenticated[array_int] = 1;
+	    runtime.cwds[array_int] = "/home/";
+	} else {
+	    // If not tell them wrong password
+	    runtime.response = "wrong password\n";
+	}
+    }
+    return runtime;
+}
+
+struct RuntimeVals userCommand(struct RuntimeVals runtime, int array_int, char* username){
+    int seen = 0;
+    // Check if the username is in our "Database"
+    for(int i = 0; i < 10; i++){
+	// If it is then set the sockets user id to that user and set our response
+	if(!strcmp(username, runtime.user_db.users[i].name)){
+	    runtime.user_id[array_int] = i;
+	    runtime.response = "Username OK, password required\n";
+	    seen = 1;
+	    break;
+	}
+    }
+    // If this user is not in the DB then respond as such
+    if(!seen) runtime.response = "Username does not exist\n";
+    return runtime;
+}
+
+struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct RuntimeVals runtime){
     // Compile all the commands which allow me to check which FTP command is being sent
     struct CommandRegex commands = compileAllCommandChecks();
     // If this socket has been authenticated
@@ -137,47 +192,33 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct UserDB
 	// Is this a valid user command
 	if(checkRegex(commands.USER, buffer)){
 	    char *username = stripStartingChars(commands.user_len, buffer);
-	    int seen = 0;
-	    // Check if the username is in our "Database"
-	    for(int i = 0; i < 10; i++){
-		// If it is then set the sockets user id to that user and set our response
-		if(!strcmp(username, user_db.users[i].name)){
-		    runtime.user_id[array_int] = i;
-		    runtime.response = "Username OK, password required\n";
-		    seen = 1;
-		    break;
-		}
-	    }
-	    // If this user is not in the DB then respond as such
-	    if(!seen) runtime.response = "Username does not exist\n";    
+	    runtime = userCommand(runtime, array_int, username);
 	} else if(checkRegex(commands.PASS, buffer)) { // Is Valid PASS command
-	    // If this socket does not have a set user then tell them to set the user
-	    if ( runtime.user_id[array_int] == -1){
-		runtime.response = "set USER first\n";
-	    } else {
-		// The socket has an associated user so check pass
-		char *password = stripStartingChars(commands.pass_len, buffer);
-		// If the password is correctly associated
-		if(!strcmp(password, user_db.users[runtime.user_id[array_int]].password)){
-		    // Authenticate the user if the password is correct
-		    runtime.response = "Authentication complete\n";
-		    runtime.authenticated[array_int] = 1;
-		} else {
-		    // If not tell them wrong password
-		    runtime.response = "wrong password\n";
-		}
-	    }
+	    char *password = stripStartingChars(commands.pass_len, buffer);
+	    runtime = passCommand(runtime, array_int, password);
 	} else {
 	    // anything besides USER and PASS when un-authenticated returns this message
 	    runtime.response = "Authenticate first\n";
 	}
     } else {
+	/* Handles commands once authenticated*/
 	/* 
-	   HANDLES ALL AUTHENTICATED COMMANDS
-	   THESE ARE UNIMPLEMENTED AS OF CHECKPOINT 1
-	   THEREFORE PLACEHOLDER INVALLID RESPONSE
-	*/
-	runtime.response = "Invalid FTP command\n";
+	   NEED TO CHANGE LS TO SEND VIA A DATA PORT 
+	   CREATE DATA CONNECTION AND SEND
+	 */
+	if(checkRegex(commands.LS, buffer)){
+	    // Lists the directory stored as this users CWD
+	    runtime.response = lsCommand(runtime.cwds[array_int]);
+	} else if(checkRegex(commands.PWD, buffer)){
+	    /* Since we have multiple users on the server, we cannot rely on the system PWD - instead use our own storage of the directory each user is on */
+	    runtime.response = pwdCommand(runtime.cwds[array_int]);
+	} else if(checkRegex(commands.CD, buffer)) {
+	    // Changes directory to given input based on cwd
+	    char *dir = stripStartingChars(commands.cd_len, buffer);
+	    runtime = serverCommandCD(runtime, array_int, dir);
+	} else {
+	    runtime.response = "Invalid FTP command\n";
+	}
     }
     // Return runtime variables with updated tables and response
     return runtime;
@@ -187,7 +228,6 @@ int main(int argc, char const *argv[])
 {
     // Length of the values from the read command
     int valread;
-    
     int opt = 1;
     // Create an empty buffer to store commands
     char buffer[1024] = {0};
@@ -196,14 +236,15 @@ int main(int argc, char const *argv[])
     struct SetupVals setup = setupAndBind(PORT, opt);
     int addrlen = sizeof(setup.address);
 
-    //Create a toy "database" of users for the purposes of authentication
-    const struct UserDB user_db = createUsers();
     
     // Handles values that will be changed during the runtime of the server
     struct RuntimeVals runtime;
     runtime.front = 0;
     runtime.highest_socket = setup.server_fd;
     memset(runtime.user_id, -1, MAX_USERS * sizeof(runtime.user_id[0]));
+    //Create a toy "database" of users for the purposes of authentication
+    runtime.user_db = createUsers();
+    
     
     while(1){
 	// Clear the buffer between every setup;
@@ -222,8 +263,16 @@ int main(int argc, char const *argv[])
 		if (FD_ISSET( runtime.active_sockets[i] , &runtime.tracked_sockets)){
 		    valread = read( runtime.active_sockets[i] , buffer, 1024);
 		    printf("%d: %s\n", runtime.active_sockets[i] ,buffer );
-		    runtime = handleCommand(buffer, i, user_db, runtime);
-		    send(runtime.active_sockets[i], runtime.response, strlen(runtime.response), 0);
+		    char *command = strtok(buffer, "\r\n");
+		    /* 
+		       NEED TO HANDLE MULTIPLE COMMANDS IN ONE
+		       IN ONE FILE READ SEPARATED BY NEWLINE
+		    */
+		    while(command != NULL) {
+			runtime = handleCommand(command, i, runtime);
+			send(runtime.active_sockets[i], runtime.response, strlen(runtime.response), 0);
+			command = strtok(NULL, "\n");
+		    }
 		}
 	    }
     }

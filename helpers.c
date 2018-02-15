@@ -3,6 +3,9 @@
 #include <string.h>
 #include <helpers.h>
 
+#define PATH_MAX 1024
+
+
 // Turning answer from https://stackoverflow.com/questions/1085083/regular-expressions-in-c-examples into a function
 regex_t compileRegex(char *regex){
     int reti;
@@ -27,6 +30,12 @@ struct CommandRegex compileAllCommandChecks(){
     commands.user_len = 5;
     commands.PASS = compileRegex("PASS [A-z][A-z]*");
     commands.pass_len = 5;
+    commands.LS = compileRegex("LS");
+    commands.ls_len = 2;
+    commands.PWD = compileRegex("PWD");
+    commands.pwd_len = 3;
+    commands.CD = compileRegex("CD [(A-z)(0-9)/\.][(A-z)(0-9)/\.]*");
+    commands.cd_len = 3;
     return commands;
 }
 
@@ -41,4 +50,34 @@ char* stripStartingChars(int num_chars, char *string){
 	string[strlen(string)-1] = 0;
     }
     return string;
+}
+
+
+char *lsCommand(char *cwd){
+    FILE *fp;
+    int status;
+    char path[PATH_MAX];
+
+    char command[1024];
+    strcpy(command, "ls -l ");
+    strcat(command, cwd);
+	    
+    fp = popen(command, "r");
+    if (fp == NULL)
+	return "wrong command usage!\n";
+
+    char *response = (char *) malloc(sizeof(char) * 10000);
+    strcpy(response, "successfully executed!\n");
+    while (fgets(path, PATH_MAX, fp) != NULL)
+	strcat(response, path);
+    status = pclose(fp);
+    return response;
+}
+
+char *pwdCommand(char *cwd){
+    char *tmp = (char *) malloc(sizeof(char) * 1024);
+    strcpy(tmp, "successfully executed!\n");
+    strcat(tmp, cwd);
+    strcat(tmp, "\n");
+    return tmp;
 }
