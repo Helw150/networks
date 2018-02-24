@@ -119,13 +119,13 @@ struct RuntimeVals prepareSelect(struct RuntimeVals runtime, struct SetupVals se
     FD_SET(setup.server_fd, &runtime.tracked_sockets);
     // For all the parts of the array that have had sockets given
     for( int i = 0; i < runtime.front; i++ )
-	    {
-		// If this array item is an active socket
-		if(runtime.active_sockets[i] != -1) {
-		    // Add that socket to the set
-		    FD_SET(runtime.active_sockets[i], &runtime.tracked_sockets);
-		}
+	{
+	    // If this array item is an active socket
+	    if(runtime.active_sockets[i] != -1) {
+		// Add that socket to the set
+		FD_SET(runtime.active_sockets[i], &runtime.tracked_sockets);
 	    }
+	}
     return runtime;
 }
 
@@ -186,8 +186,8 @@ struct RuntimeVals userCommand(struct RuntimeVals runtime, int array_int, char* 
 
 struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct RuntimeVals runtime){
     // Compile all the commands which allow me to check which FTP command is being sent
-    struct CommandRegex commands = compileAllCommandChecks();
-    // If this socket has been authenticated
+    struct CommandRegex commands = compileAllCommandChecks(); 
+    // If this socket has been authenticated`
     if(!runtime.authenticated[array_int]){
 	// Is this a valid user command
 	if(checkRegex(commands.USER, buffer)){
@@ -226,6 +226,7 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
 
 int main(int argc, char const *argv[])
 {
+    struct CommandRegex commands = compileAllCommandChecks(); 
     // Length of the values from the read command
     int valread;
     int opt = 1;
@@ -244,7 +245,7 @@ int main(int argc, char const *argv[])
     memset(runtime.user_id, -1, MAX_USERS * sizeof(runtime.user_id[0]));
     //Create a toy "database" of users for the purposes of authentication
     runtime.user_db = createUsers();
-    
+    memset(&runtime.active_sockets[0], -1, sizeof(runtime.active_sockets));
     
     while(1){
 	// Clear the buffer between every setup;
@@ -263,17 +264,26 @@ int main(int argc, char const *argv[])
 		if (FD_ISSET( runtime.active_sockets[i] , &runtime.tracked_sockets)){
 		    valread = read( runtime.active_sockets[i] , buffer, 1024);
 		    printf("%d: %s\n", runtime.active_sockets[i] ,buffer );
-		    char *command = strtok(buffer, "\r\n");
-		    /* 
-		       NEED TO HANDLE MULTIPLE COMMANDS IN ONE
-		       IN ONE FILE READ SEPARATED BY NEWLINE
-		    */
-		    while(command != NULL) {
-			runtime = handleCommand(command, i, runtime);
-			send(runtime.active_sockets[i], runtime.response, strlen(runtime.response), 0);
-			command = strtok(NULL, "\n");
+		    if(checkRegex(commands.QUIT, buffer)){
+			// Close Socket
+			close(runtime.active_sockets[i]);
+			// Remove from FD tracking in the future
+			runtime.active_sockets[i] = -1;
+			// Remove from CWDs
+			runtime.cwds[i] = "/home/";
+			// De-authenticate
+			runtime.authenticated[i] = 0;
+			runtime.user_id[i] = -1;
+		    } else {
+			char *command = strtok(buffer, "\r\n");
+			while(command != NULL) {
+			    runtime = handleCommand(command, i, runtime);
+			    send(runtime.active_sockets[i], runtime.response, strlen(runtime.response), 0);
+			    command = strtok(NULL, "\n");
+			}
 		    }
 		}
+		memset(&buffer[0], 0, sizeof(buffer));
 	    }
     }
     return 0;
