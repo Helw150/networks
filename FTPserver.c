@@ -264,7 +264,7 @@ int main(int argc, char const *argv[])
 		if (FD_ISSET( runtime.active_sockets[i] , &runtime.tracked_sockets)){
 		    valread = read( runtime.active_sockets[i] , buffer, 1024);
 		    printf("%d: %s\n", runtime.active_sockets[i] ,buffer );
-		    if(checkRegex(commands.QUIT, buffer)){
+		    if(checkRegex(commands.QUIT, buffer) || valread == 0){
 			// Close Socket
 			close(runtime.active_sockets[i]);
 			// Remove from FD tracking in the future
