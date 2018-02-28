@@ -15,15 +15,14 @@ void localCommand(char* input, struct CommandRegex commands){
     if(checkRegex(commands.LS, input)){
 	printf("%s", lsCommand(cwd));
     } else if (checkRegex(commands.PWD, input)) {
-	chdir(".");
-	printf(pwdCommand(cwd));
+	printf("%s", pwdCommand(cwd));
     } else if (checkRegex(commands.CD, input)) {
 	char* dir = stripStartingChars(commands.cd_len, input);
 	int ret = chdir(dir);
 	if(ret == 0){ // If the directory is valid
 	    getcwd(cwd, 1024);
 	    // Return the pwd command so they know where they changed to
-	    printf(pwdCommand(cwd));
+	    printf("%s", pwdCommand(cwd));
 	} else {
 	    printf("Invalid target directory!\n");
 	}
@@ -33,7 +32,7 @@ void localCommand(char* input, struct CommandRegex commands){
 
 int main(int argc, char const *argv[])
 {
-    char *ip_addr = argv[1];
+    const char *ip_addr = argv[1];
     struct CommandRegex commands = compileAllCommandChecks();
     int PORT = atoi(argv[2]);
     struct sockaddr_in address;
@@ -64,7 +63,8 @@ int main(int argc, char const *argv[])
 	    return -1;
 	}
     int data_port;
-    getsockname(sock, (struct sockaddr *)&address, sizeof(address));
+    int a_len = sizeof(address);
+    getsockname(sock, (struct sockaddr *)&address, &a_len);
     data_port = ntohs(address.sin_port)+1;
     char input[128];
     while(1){
