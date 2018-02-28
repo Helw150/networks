@@ -72,7 +72,7 @@ struct RuntimeVals createNewConnection(struct SetupVals setup, struct RuntimeVal
     } else if (runtime.front > MAX_USERS){
 	// If the table is totally full, tell the client and close the socket
 	char *reject_message = "Server is currently at max capacity";
-	send(new_socket , reject_message, strlen(reject_message), 0 );
+	send(new_socket, reject_message, strlen(reject_message), 0 );
 	close(new_socket);
     }
     return runtime;

@@ -54,17 +54,20 @@ struct SetupVals setupAndBind(int port_number, int opt){
 char* transferFile(int socket, char *path){
     int file_descriptor = open(path, O_RDONLY);
     if(file_descriptor < 0){
-	return "filename: no such file on server";
+	return "filename: no such file";
     }
     struct stat stats;
     fstat(file_descriptor, &stats);
+    char file_size[1024];
+    sprintf(file_size, "%d", stats.st_size);
+    send(socket, file_size, sizeof(file_size), 0);
     int sent_count = sendfile(socket, file_descriptor, NULL,stats.st_size);
     if(sent_count != stats.st_size){
 	return "Error during file transfer\n";
     } else {
 	close(socket);
 	close(file_descriptor);
-	return "File transfer complete";
+	return "File transfer complete\n";
     }
 }
 
@@ -75,23 +78,21 @@ void receiveFile(int socket, char *path){
     ssize_t amount_received;
     FD_SET(socket, &tracker);
     select(socket+1, &tracker, NULL, NULL, NULL);
-    if(FD_ISSET(socket, &tracker)){
-	recv(socket, buffer, 1024, 0);
-	int file_size = atoi(buffer);
-	received_file = fopen(path, "w");
-	if (received_file == NULL)
-	    {
-		printf("Improper Filename\n");
-		exit(EXIT_FAILURE);
-	    }
-	
-	while (((amount_received = recv(socket, buffer, 1024, 0)) > 0) && (file_size > 0))
-	    {
-		fwrite(buffer, sizeof(char), amount_received, received_file);
-	    }
-	fclose(received_file);
-	close(socket);
+    read(socket, buffer, 1024);
+    int file_size = atoi(buffer);
+    printf(buffer);
+    received_file = fopen(path, "w");
+    if (received_file == NULL) {
+	    printf("Improper Filename\n");
+	    exit(EXIT_FAILURE);
     }
+    
+    while (((amount_received = recv(socket, buffer, 1024, 0)) > 0) && (file_size > 0))
+	{
+	    fwrite(buffer, sizeof(char), amount_received, received_file);
+	}
+    fclose(received_file);
+    close(socket);
 }
 
 int connectToSocket(const char* ip_addr, int PORT){

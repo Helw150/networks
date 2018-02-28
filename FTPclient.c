@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <netinet/in.h>
+#include <sys/select.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -57,6 +58,26 @@ int main(int argc, char const *argv[])
 	    localCommand(local_input, commands);
 	}
 	else {
+	    
+	    if(checkRegex(commands.GET, input)){
+		fd_set tracker;
+		int new_socket;
+		FD_SET(setup.server_fd, &tracker);
+		send(sock, input, strlen(input), 0);
+		select(setup.server_fd+1, &tracker, NULL, NULL, NULL);
+		if ((new_socket = accept(setup.server_fd, (struct sockaddr *)&setup.address,(socklen_t*)&setup.addrlen))<0) {
+			perror("accept");
+			exit(EXIT_FAILURE);
+		}
+		char path[1024];
+		char *cwd = (char *) malloc(sizeof(char) * 1024);
+		getcwd(cwd, 1024);
+		strcpy(path, cwd);
+		strcat(path, "/");
+		strcat(path, stripStartingChars(commands.get_len, input));
+		printf(path);
+		receiveFile(new_socket, path);
+	    }
 	    send(sock, input, strlen(input), 0);
 	    valread = read(sock , buffer, 10000);
 	    printf("%s", buffer);
