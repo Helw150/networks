@@ -15,6 +15,10 @@ struct SetupVals setupAndBind(int port_number, int opt);
 
 int connectToSocket(const char* ip_addr, int PORT);
 
+char* transferFile(int socket, char *path);
+
+void receiveFile(int socket, char *path);
+
 struct CommandRegex compileAllCommandChecks();
 
 struct CommandRegex {

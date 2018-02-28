@@ -188,7 +188,11 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
 	    inet_ntop(AF_INET, &address.sin_addr, data_ip, 1024);
 	    int data_port = ntohs(address.sin_port)+1;
 	    int data_sock = connectToSocket(data_ip, data_port);
-	    runtime.response = transferFile(data_sock, stripStartingChars(commands.get_len, buffer));
+	    char path[1024];
+	    strcpy(path, runtime.cwds[array_int]);
+	    strcat(path, "/");
+	    strcat(path, stripStartingChars(commands.get_len, buffer));
+	    runtime.response = transferFile(data_sock, path);
 	}else {
 	    runtime.response = "Invalid FTP command\n";
 	}

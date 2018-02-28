@@ -2,9 +2,15 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdlib.h>
+#include <sys/stat.h> 
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/select.h>
 #include <string.h>
 #include <helpers.h>
 #include <sys/sendfile.h>
+#include <unistd.h>
+
 
 #define PATH_MAX 1024
 
@@ -45,8 +51,47 @@ struct SetupVals setupAndBind(int port_number, int opt){
     return setup;
 }
 
-void transferFile(int socket, char *path){
-    
+char* transferFile(int socket, char *path){
+    int file_descriptor = open(path, O_RDONLY);
+    if(file_descriptor < 0){
+	return "filename: no such file on server";
+    }
+    struct stat stats;
+    fstat(file_descriptor, &stats);
+    int sent_count = sendfile(socket, file_descriptor, NULL,stats.st_size);
+    if(sent_count != stats.st_size){
+	return "Error during file transfer\n";
+    } else {
+	close(socket);
+	close(file_descriptor);
+	return "File transfer complete";
+    }
+}
+
+void receiveFile(int socket, char *path){
+    FILE *received_file;
+    char buffer[1024];
+    fd_set tracker;
+    ssize_t amount_received;
+    FD_SET(socket, &tracker);
+    select(socket+1, &tracker, NULL, NULL, NULL);
+    if(FD_ISSET(socket, &tracker)){
+	recv(socket, buffer, 1024, 0);
+	int file_size = atoi(buffer);
+	received_file = fopen(path, "w");
+	if (received_file == NULL)
+	    {
+		printf("Improper Filename\n");
+		exit(EXIT_FAILURE);
+	    }
+	
+	while (((amount_received = recv(socket, buffer, 1024, 0)) > 0) && (file_size > 0))
+	    {
+		fwrite(buffer, sizeof(char), amount_received, received_file);
+	    }
+	fclose(received_file);
+	close(socket);
+    }
 }
 
 int connectToSocket(const char* ip_addr, int PORT){
@@ -54,7 +99,6 @@ int connectToSocket(const char* ip_addr, int PORT){
     struct sockaddr_in serv_addr;
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
-	    printf("%d", sock);
 	    printf("\n Socket creation error \n");
 	    return -1;
 	}
@@ -64,7 +108,6 @@ int connectToSocket(const char* ip_addr, int PORT){
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
 
-    printf(ip_addr);
     // Convert IPv4 and IPv6 addresses from text to binary form
     if(inet_pton(AF_INET, ip_addr, &serv_addr.sin_addr)<=0)
 	{
