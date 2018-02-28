@@ -5,75 +5,40 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/select.h>
+#include <sys/sendfile.h>
 #include <unistd.h>
 
-#include <FTPserver.h>
 #include <helpers.h>
+#include <FTPserver.h>
 
 #define PORT 8080
 
 // Creates some fake users for our "database"
 struct UserDB createUsers(){
     struct UserDB user_db;
-    user_db.users[0].name = "Yasir";
-    user_db.users[0].password = "Zaki";
-    user_db.users[1].name = "Will";
-    user_db.users[1].password = "Held";
-    user_db.users[2].name = "Guyu";
-    user_db.users[2].password = "Fan";
-    user_db.users[3].name = "Paula";
-    user_db.users[3].password = "Dosza";
-    user_db.users[4].name = "Jerome";
-    user_db.users[4].password = "White";
-    user_db.users[5].name = "Megan";
-    user_db.users[5].password = "Moore";
-    user_db.users[6].name = "Christina";
-    user_db.users[6].password = "Popper";
-    user_db.users[7].name = "Nizar";
-    user_db.users[7].password = "Habash";
-    user_db.users[8].name = "God";
-    user_db.users[8].password = "fried";
-    user_db.users[9].name = "Jay";
-    user_db.users[9].password = "Chen";
+    user_db.users[0].name = "user1";
+    user_db.users[0].password = "pass1";
+    user_db.users[1].name = "user2";
+    user_db.users[1].password = "pass2";
+    user_db.users[2].name = "user3";
+    user_db.users[2].password = "pass3";
+    user_db.users[3].name = "user4";
+    user_db.users[3].password = "pass4";
+    user_db.users[4].name = "user5";
+    user_db.users[4].password = "pass5";
+    user_db.users[5].name = "user6";
+    user_db.users[5].password = "pass6";
+    user_db.users[6].name = "user7";
+    user_db.users[6].password = "pass7";
+    user_db.users[7].name = "user8";
+    user_db.users[7].password = "pass8";
+    user_db.users[8].name = "user9";
+    user_db.users[8].password = "pass9";
+    user_db.users[9].name = "user0";
+    user_db.users[9].password = "pass0";
     return user_db;
 }
 
-
-struct SetupVals setupAndBind(int port_number, int opt){
-    struct SetupVals setup;
-    setup.addrlen = sizeof(setup.address);
-    // Creating socket file descriptor
-    if ((setup.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-	{
-	    perror("socket failed");
-	    exit(EXIT_FAILURE);
-	}
-
-    // Forcefully attaching socket to the port 8080
-    if (setsockopt(setup.server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-		   &opt, sizeof(opt)))
-	{
-	    perror("setsockopt");
-	    exit(EXIT_FAILURE);
-	}
-    setup.address.sin_family = AF_INET;
-    setup.address.sin_addr.s_addr = INADDR_ANY;
-    setup.address.sin_port = htons(port_number);
-
-    // Forcefully attaching socket to the port 8080
-    if (bind(setup.server_fd, (struct sockaddr *)&setup.address, sizeof(setup.address)) < 0)
-	{
-	    perror("bind failed");
-	    exit(EXIT_FAILURE);
-	}
-    // Setup listener on a master socket and let 3 people wait there
-    if (listen(setup.server_fd, 3) < 0)
-	{
-	    perror("listen");
-	    exit(EXIT_FAILURE);
-	}
-    return setup;
-}
 
 // Setup a new connection coming from the master port
 struct RuntimeVals createNewConnection(struct SetupVals setup, struct RuntimeVals runtime){
@@ -107,7 +72,7 @@ struct RuntimeVals createNewConnection(struct SetupVals setup, struct RuntimeVal
     } else if (runtime.front > MAX_USERS){
 	// If the table is totally full, tell the client and close the socket
 	char *reject_message = "Server is currently at max capacity";
-	send(new_socket , reject_message, strlen(reject_message), 0 );
+	send(new_socket, reject_message, strlen(reject_message), 0 );
 	close(new_socket);
     }
     return runtime;
@@ -119,13 +84,13 @@ struct RuntimeVals prepareSelect(struct RuntimeVals runtime, struct SetupVals se
     FD_SET(setup.server_fd, &runtime.tracked_sockets);
     // For all the parts of the array that have had sockets given
     for( int i = 0; i < runtime.front; i++ )
-	    {
-		// If this array item is an active socket
-		if(runtime.active_sockets[i] != -1) {
-		    // Add that socket to the set
-		    FD_SET(runtime.active_sockets[i], &runtime.tracked_sockets);
-		}
+	{
+	    // If this array item is an active socket
+	    if(runtime.active_sockets[i] != -1) {
+		// Add that socket to the set
+		FD_SET(runtime.active_sockets[i], &runtime.tracked_sockets);
 	    }
+	}
     return runtime;
 }
 
@@ -186,8 +151,8 @@ struct RuntimeVals userCommand(struct RuntimeVals runtime, int array_int, char* 
 
 struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct RuntimeVals runtime){
     // Compile all the commands which allow me to check which FTP command is being sent
-    struct CommandRegex commands = compileAllCommandChecks();
-    // If this socket has been authenticated
+    struct CommandRegex commands = compileAllCommandChecks(); 
+    // If this socket has been authenticated`
     if(!runtime.authenticated[array_int]){
 	// Is this a valid user command
 	if(checkRegex(commands.USER, buffer)){
@@ -203,9 +168,8 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
     } else {
 	/* Handles commands once authenticated*/
 	/* 
-	   NEED TO CHANGE LS TO SEND VIA A DATA PORT 
-	   CREATE DATA CONNECTION AND SEND
-	 */
+	   Nabil at some point said that LS had to be sent over the data port. However, this doesn't match what is in the RFC or the Pseudo-code in the PDF. I am going to ignore that comment and send LS over the regular socket.
+	*/
 	if(checkRegex(commands.LS, buffer)){
 	    // Lists the directory stored as this users CWD
 	    runtime.response = lsCommand(runtime.cwds[array_int]);
@@ -216,7 +180,25 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
 	    // Changes directory to given input based on cwd
 	    char *dir = stripStartingChars(commands.cd_len, buffer);
 	    runtime = serverCommandCD(runtime, array_int, dir);
-	} else {
+	}  else if(checkRegex(commands.GET, buffer) || checkRegex(commands.PUT, buffer)) {
+	    struct sockaddr_in address;
+	    int addrlen = sizeof(address);
+	    getpeername(runtime.active_sockets[array_int], (struct sockaddr *)&address, (socklen_t*)&addrlen);
+	    char *data_ip  = (char *) malloc(sizeof(char) * 1024);
+	    inet_ntop(AF_INET, &address.sin_addr, data_ip, 1024);
+	    int data_port = ntohs(address.sin_port)+1;
+	    int data_sock = connectToSocket(data_ip, data_port);
+	    char path[1024];
+	    strcpy(path, runtime.cwds[array_int]);
+	    strcat(path, "/");
+	    strcat(path, stripStartingChars(commands.get_len, buffer));
+	    if(checkRegex(commands.GET, buffer)){
+		runtime.response = transferFile(data_sock, path);
+	    } else {
+		runtime.response = receiveFile(data_sock, path);
+	    }
+	    
+	}else {
 	    runtime.response = "Invalid FTP command\n";
 	}
     }
@@ -224,8 +206,8 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
     return runtime;
 }
 
-int main(int argc, char const *argv[])
-{
+int main(int argc, char const *argv[]){
+    struct CommandRegex commands = compileAllCommandChecks(); 
     // Length of the values from the read command
     int valread;
     int opt = 1;
@@ -244,7 +226,7 @@ int main(int argc, char const *argv[])
     memset(runtime.user_id, -1, MAX_USERS * sizeof(runtime.user_id[0]));
     //Create a toy "database" of users for the purposes of authentication
     runtime.user_db = createUsers();
-    
+    memset(&runtime.active_sockets[0], -1, sizeof(runtime.active_sockets));
     
     while(1){
 	// Clear the buffer between every setup;
@@ -262,19 +244,42 @@ int main(int argc, char const *argv[])
 	    {
 		if (FD_ISSET( runtime.active_sockets[i] , &runtime.tracked_sockets)){
 		    valread = read( runtime.active_sockets[i] , buffer, 1024);
-		    printf("%d: %s\n", runtime.active_sockets[i] ,buffer );
-		    char *command = strtok(buffer, "\r\n");
-		    /* 
-		       NEED TO HANDLE MULTIPLE COMMANDS IN ONE
-		       IN ONE FILE READ SEPARATED BY NEWLINE
-		    */
+		    // Unexpected Close
+		    if(valread == 0){
+			// Close Socket
+			close(runtime.active_sockets[i]);
+			// Remove from FD tracking in the future
+			runtime.active_sockets[i] = -1;
+			// Remove from CWDs
+			runtime.cwds[i] = "/home/";
+			// De-authenticate
+			runtime.authenticated[i] = 0;
+			runtime.user_id[i] = -1;
+			break;
+		    }
+		    char *command = strtok(buffer, "\n");
 		    while(command != NULL) {
-			runtime = handleCommand(command, i, runtime);
-			send(runtime.active_sockets[i], runtime.response, strlen(runtime.response), 0);
-			command = strtok(NULL, "\n");
+			printf("%d: %s\n", runtime.active_sockets[i] , command);
+			if(checkRegex(commands.QUIT, command) || valread == 0){
+			    // Close Socket
+			    close(runtime.active_sockets[i]);
+			    // Remove from FD tracking in the future
+			    runtime.active_sockets[i] = -1;
+			    // Remove from CWDs
+			    runtime.cwds[i] = "/home/";
+			    // De-authenticate
+			    runtime.authenticated[i] = 0;
+			    runtime.user_id[i] = -1;
+			    break;
+			} else {
+			    runtime = handleCommand(command, i, runtime);
+			    send(runtime.active_sockets[i], runtime.response, strlen(runtime.response), 0);
+			    command = strtok(NULL, "\n");
+			}
 		    }
 		}
 	    }
+	memset(&buffer[0], 0, sizeof(buffer));
     }
     return 0;
 }
