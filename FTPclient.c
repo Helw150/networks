@@ -9,6 +9,27 @@
 #include <FTPclient.h>
 #include <helpers.h>
 
+void localCommand(char* input, struct CommandRegex commands){
+    char *cwd = (char *) malloc(sizeof(char) * 1024);
+    getcwd(cwd, 1024);
+    if(checkRegex(commands.LS, input)){
+	printf("%s", lsCommand(cwd));
+    } else if (checkRegex(commands.PWD, input)) {
+	chdir(".");
+	printf(pwdCommand(cwd));
+    } else if (checkRegex(commands.CD, input)) {
+	char* dir = stripStartingChars(commands.cd_len, input);
+	int ret = chdir(dir);
+	if(ret == 0){ // If the directory is valid
+	    getcwd(cwd, 1024);
+	    // Return the pwd command so they know where they changed to
+	    printf(pwdCommand(cwd));
+	} else {
+	    printf("Invalid target directory!\n");
+	}
+    }
+    return;
+}
 
 int main(int argc, char const *argv[])
 {
@@ -42,11 +63,13 @@ int main(int argc, char const *argv[])
 	    printf("\nConnection Failed \n");
 	    return -1;
 	}
-
-    getpeername(sock, (struct sockaddr *)&address, sizeof(address));
+    int data_port;
+    getsockname(sock, (struct sockaddr *)&address, sizeof(address));
+    data_port = ntohs(address.sin_port);
     char input[128];
     while(1){
 	memset(&buffer[0], 0, sizeof(buffer));
+	memset(&input[0], 0, sizeof(input));
 	printf("ftp> ");
 	fgets(input, 128, stdin);
 	if(input[0] == '!'){
@@ -54,35 +77,14 @@ int main(int argc, char const *argv[])
 	    char* local_input = stripStartingChars(1, input);
 	    localCommand(local_input, commands);
 	}
-	else if(checkRegex(commands.QUIT, input)){
-	    return 0;
-	} else {
-	    send(sock , input, strlen(input) , 0 );
-	    valread = read( sock , buffer, 1024);
-	    printf("%s",buffer );
+	else {
+	    send(sock, input, strlen(input), 0);
+	    valread = read(sock , buffer, 1024);
+	    printf("%s", buffer);
+	    if(checkRegex(commands.QUIT, input)){
+		return 0;
+	    }
 	}
     }
     return 0;
-}
-
-void localCommand(char* input, struct CommandRegex commands){
-    char cwd[1024];
-    getcwd(cwd, strlen(cwd));
-    if(checkRegex(commands.LS, input)){
-	printf("%s", lsCommand(cwd));
-    } else if (checkRegex(commands.PWD, input)) {
-	printf("%s", cwd);
-    } else if (checkRegex(commands.CD, input)) {
-	char* dir = stripStartingChars(commands.cd_len, input);
-	int ret = chdir(dir);
-	if(ret == 0){ // If the directory is valid
-	    char *tmp = (char *) malloc(sizeof(char) * 1024);
-	    getcwd(tmp, 1024);
-	    // Return the pwd command so they know where they changed to
-	    printf(pwdCommand(tmp));
-	} else {
-	    printf("Invalid target directory!\n");
-	}
-    }
-    return;
 }

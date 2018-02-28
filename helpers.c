@@ -36,8 +36,12 @@ struct CommandRegex compileAllCommandChecks(){
     commands.pwd_len = 3;
     commands.CD = compileRegex("CD [(A-z)(0-9)/\.][(A-z)(0-9)/\.]*");
     commands.cd_len = 3;
+    commands.GET = compileRegex("GET [(A-z)(0-9)/\.][(A-z)(0-9)/\.]*");
+    commands.get_len = 4;
+    commands.PUT = compileRegex("PUT [(A-z)(0-9)/\.][(A-z)(0-9)/\.]*");
+    commands.put_len = 4;
     commands.QUIT = compileRegex("QUIT");
-    commands.pwd_len = 4;
+    commands.quit_len = 4;
     return commands;
 }
 

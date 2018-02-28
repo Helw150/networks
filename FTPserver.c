@@ -15,26 +15,26 @@
 // Creates some fake users for our "database"
 struct UserDB createUsers(){
     struct UserDB user_db;
-    user_db.users[0].name = "Yasir";
-    user_db.users[0].password = "Zaki";
-    user_db.users[1].name = "Will";
-    user_db.users[1].password = "Held";
-    user_db.users[2].name = "Guyu";
-    user_db.users[2].password = "Fan";
-    user_db.users[3].name = "Paula";
-    user_db.users[3].password = "Dosza";
-    user_db.users[4].name = "Jerome";
-    user_db.users[4].password = "White";
-    user_db.users[5].name = "Megan";
-    user_db.users[5].password = "Moore";
-    user_db.users[6].name = "Christina";
-    user_db.users[6].password = "Popper";
-    user_db.users[7].name = "Nizar";
-    user_db.users[7].password = "Habash";
-    user_db.users[8].name = "God";
-    user_db.users[8].password = "fried";
-    user_db.users[9].name = "Jay";
-    user_db.users[9].password = "Chen";
+    user_db.users[0].name = "user1";
+    user_db.users[0].password = "pass1";
+    user_db.users[1].name = "user2";
+    user_db.users[1].password = "pass2";
+    user_db.users[2].name = "user3";
+    user_db.users[2].password = "pass3";
+    user_db.users[3].name = "user4";
+    user_db.users[3].password = "pass4";
+    user_db.users[4].name = "user5";
+    user_db.users[4].password = "pass5";
+    user_db.users[5].name = "user6";
+    user_db.users[5].password = "pass6";
+    user_db.users[6].name = "user7";
+    user_db.users[6].password = "pass7";
+    user_db.users[7].name = "user8";
+    user_db.users[7].password = "pass8";
+    user_db.users[8].name = "user9";
+    user_db.users[8].password = "pass9";
+    user_db.users[9].name = "user0";
+    user_db.users[9].password = "pass0";
     return user_db;
 }
 
@@ -205,7 +205,7 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
 	/* 
 	   NEED TO CHANGE LS TO SEND VIA A DATA PORT 
 	   CREATE DATA CONNECTION AND SEND
-	 */
+	*/
 	if(checkRegex(commands.LS, buffer)){
 	    // Lists the directory stored as this users CWD
 	    runtime.response = lsCommand(runtime.cwds[array_int]);
@@ -224,8 +224,7 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
     return runtime;
 }
 
-int main(int argc, char const *argv[])
-{
+int main(int argc, char const *argv[]){
     struct CommandRegex commands = compileAllCommandChecks(); 
     // Length of the values from the read command
     int valread;
@@ -263,8 +262,8 @@ int main(int argc, char const *argv[])
 	    {
 		if (FD_ISSET( runtime.active_sockets[i] , &runtime.tracked_sockets)){
 		    valread = read( runtime.active_sockets[i] , buffer, 1024);
-		    printf("%d: %s\n", runtime.active_sockets[i] ,buffer );
-		    if(checkRegex(commands.QUIT, buffer) || valread == 0){
+		    // Unexpected Close
+		    if(valread == 0){
 			// Close Socket
 			close(runtime.active_sockets[i]);
 			// Remove from FD tracking in the future
@@ -274,17 +273,31 @@ int main(int argc, char const *argv[])
 			// De-authenticate
 			runtime.authenticated[i] = 0;
 			runtime.user_id[i] = -1;
-		    } else {
-			char *command = strtok(buffer, "\r\n");
-			while(command != NULL) {
+			break;
+		    }
+		    char *command = strtok(buffer, "\n");
+		    while(command != NULL) {
+			printf("%d: %s\n", runtime.active_sockets[i] , command);
+			if(checkRegex(commands.QUIT, command) || valread == 0){
+			    // Close Socket
+			    close(runtime.active_sockets[i]);
+			    // Remove from FD tracking in the future
+			    runtime.active_sockets[i] = -1;
+			    // Remove from CWDs
+			    runtime.cwds[i] = "/home/";
+			    // De-authenticate
+			    runtime.authenticated[i] = 0;
+			    runtime.user_id[i] = -1;
+			    break;
+			} else {
 			    runtime = handleCommand(command, i, runtime);
 			    send(runtime.active_sockets[i], runtime.response, strlen(runtime.response), 0);
 			    command = strtok(NULL, "\n");
 			}
 		    }
 		}
-		memset(&buffer[0], 0, sizeof(buffer));
 	    }
+	memset(&buffer[0], 0, sizeof(buffer));
     }
     return 0;
 }
