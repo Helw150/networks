@@ -38,7 +38,7 @@ int main(int argc, char const *argv[])
     struct sockaddr_in address;
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
-    char buffer[1024] = {0};
+    char buffer[10000] = {0};
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
 	    printf("\n Socket creation error \n");
@@ -64,8 +64,9 @@ int main(int argc, char const *argv[])
 	}
     int data_port;
     int a_len = sizeof(address);
-    getsockname(sock, (struct sockaddr *)&address, &a_len);
+    getsockname(sock, (struct sockaddr *)&address, (socklen_t*)&a_len);
     data_port = ntohs(address.sin_port)+1;
+    struct SetupVals setup = setupAndBind(data_port, 1);
     char input[128];
     while(1){
 	memset(&buffer[0], 0, sizeof(buffer));
@@ -79,7 +80,7 @@ int main(int argc, char const *argv[])
 	}
 	else {
 	    send(sock, input, strlen(input), 0);
-	    valread = read(sock , buffer, 1024);
+	    valread = read(sock , buffer, 10000);
 	    printf("%s", buffer);
 	    if(checkRegex(commands.QUIT, input)){
 		return 0;

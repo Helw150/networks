@@ -109,10 +109,17 @@ char *lsCommand(char *cwd){
     fp = popen(command, "r");
     if (fp == NULL)
 	return "wrong command usage!\n";
-
-    char *response = (char *) malloc(sizeof(char) * 10000);
+    
+    char *response = (char *) malloc(sizeof(char) * 100000);
+    strcpy(response, "successfully executed!\n");
     while (fgets(path, PATH_MAX, fp) != NULL)
-	strcat(response, path);
+	{
+	    // RFC says to add spaces to multi line responses
+	    if(strcmp(path, "") != 0){
+		strcat(response, " ");
+	    }
+	    strcat(response, path);
+	}
     status = pclose(fp);
     return response;
 }

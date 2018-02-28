@@ -167,15 +167,11 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
     } else {
 	/* Handles commands once authenticated*/
 	/* 
-	   NEED TO CHANGE LS TO SEND VIA A DATA PORT 
-	   CREATE DATA CONNECTION AND SEND
+	   Nabil at some point said that LS had to be sent over the data port. However, this doesn't match what is in the RFC or the Pseudo-code in the PDF. I am going to ignore that comment and send LS over the regular socket.
 	*/
 	if(checkRegex(commands.LS, buffer)){
 	    // Lists the directory stored as this users CWD
 	    runtime.response = lsCommand(runtime.cwds[array_int]);
-	    if(runtime.response != "wrong command usage!\n"){
-		runtime.response = "successfully executed!\n";
-	    }
 	} else if(checkRegex(commands.PWD, buffer)){
 	    /* Since we have multiple users on the server, we cannot rely on the system PWD - instead use our own storage of the directory each user is on */
 	    runtime.response = pwdCommand(runtime.cwds[array_int]);
