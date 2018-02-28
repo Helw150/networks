@@ -42,6 +42,7 @@ int main(int argc, char const *argv[])
     int data_port;
     int a_len = sizeof(address);
     getsockname(sock, (struct sockaddr *)&address, (socklen_t*)&a_len);
+    char data_ip[1024];
     data_port = ntohs(address.sin_port)+1;
     struct SetupVals setup = setupAndBind(data_port, 1);
     char input[128];

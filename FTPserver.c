@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/select.h>
+#include <sys/sendfile.h>
 #include <unistd.h>
 
 #include <helpers.h>
@@ -179,7 +180,16 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
 	    // Changes directory to given input based on cwd
 	    char *dir = stripStartingChars(commands.cd_len, buffer);
 	    runtime = serverCommandCD(runtime, array_int, dir);
-	} else {
+	}  else if(checkRegex(commands.GET, buffer)) {
+	    struct sockaddr_in address;
+	    int addrlen = sizeof(address);
+	    getpeername(runtime.active_sockets[array_int], (struct sockaddr *)&address, (socklen_t*)&addrlen);
+	    char *data_ip  = (char *) malloc(sizeof(char) * 1024);
+	    inet_ntop(AF_INET, &address.sin_addr, data_ip, 1024);
+	    int data_port = ntohs(address.sin_port)+1;
+	    int data_sock = connectToSocket(data_ip, data_port);
+	    runtime.response = transferFile(data_sock, stripStartingChars(commands.get_len, buffer));
+	}else {
 	    runtime.response = "Invalid FTP command\n";
 	}
     }

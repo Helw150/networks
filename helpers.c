@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <helpers.h>
+#include <sys/sendfile.h>
 
 #define PATH_MAX 1024
 
@@ -44,11 +45,16 @@ struct SetupVals setupAndBind(int port_number, int opt){
     return setup;
 }
 
+void transferFile(int socket, char *path){
+    
+}
+
 int connectToSocket(const char* ip_addr, int PORT){
     int sock = 0;
     struct sockaddr_in serv_addr;
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
+	    printf("%d", sock);
 	    printf("\n Socket creation error \n");
 	    return -1;
 	}
@@ -58,6 +64,7 @@ int connectToSocket(const char* ip_addr, int PORT){
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
 
+    printf(ip_addr);
     // Convert IPv4 and IPv6 addresses from text to binary form
     if(inet_pton(AF_INET, ip_addr, &serv_addr.sin_addr)<=0)
 	{
