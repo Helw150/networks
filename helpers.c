@@ -71,7 +71,7 @@ char* transferFile(int socket, char *path){
     }
 }
 
-void receiveFile(int socket, char *path){
+char* receiveFile(int socket, char *path){
     FILE *received_file;
     char buffer[1024];
     fd_set tracker;
@@ -80,11 +80,9 @@ void receiveFile(int socket, char *path){
     select(socket+1, &tracker, NULL, NULL, NULL);
     read(socket, buffer, 1024);
     int file_size = atoi(buffer);
-    printf(buffer);
     received_file = fopen(path, "w");
     if (received_file == NULL) {
-	    printf("Improper Filename\n");
-	    exit(EXIT_FAILURE);
+	    return "Improper Filename or lacking Permissions\n";
     }
     
     while (((amount_received = recv(socket, buffer, 1024, 0)) > 0) && (file_size > 0))
@@ -93,6 +91,7 @@ void receiveFile(int socket, char *path){
 	}
     fclose(received_file);
     close(socket);
+    return "File Recieved\n";
 }
 
 int connectToSocket(const char* ip_addr, int PORT){

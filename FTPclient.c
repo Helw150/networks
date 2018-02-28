@@ -57,17 +57,16 @@ int main(int argc, char const *argv[])
 	    char* local_input = stripStartingChars(1, input);
 	    localCommand(local_input, commands);
 	}
-	else {
-	    
-	    if(checkRegex(commands.GET, input)){
+	else {	    
+	    if(checkRegex(commands.GET, input) || checkRegex(commands.PUT, input)){
 		fd_set tracker;
 		int new_socket;
 		FD_SET(setup.server_fd, &tracker);
 		send(sock, input, strlen(input), 0);
 		select(setup.server_fd+1, &tracker, NULL, NULL, NULL);
 		if ((new_socket = accept(setup.server_fd, (struct sockaddr *)&setup.address,(socklen_t*)&setup.addrlen))<0) {
-			perror("accept");
-			exit(EXIT_FAILURE);
+		    perror("accept");
+		    exit(EXIT_FAILURE);
 		}
 		char path[1024];
 		char *cwd = (char *) malloc(sizeof(char) * 1024);
@@ -75,10 +74,14 @@ int main(int argc, char const *argv[])
 		strcpy(path, cwd);
 		strcat(path, "/");
 		strcat(path, stripStartingChars(commands.get_len, input));
-		printf(path);
-		receiveFile(new_socket, path);
+		if(checkRegex(commands.PUT, input)){
+		    transferFile(new_socket, path);
+		} else {
+		    receiveFile(new_socket, path);
+		}
+	    } else {
+		send(sock, input, strlen(input), 0);
 	    }
-	    send(sock, input, strlen(input), 0);
 	    valread = read(sock , buffer, 10000);
 	    printf("%s", buffer);
 	    if(checkRegex(commands.QUIT, input)){

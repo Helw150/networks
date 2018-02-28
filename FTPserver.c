@@ -180,7 +180,7 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
 	    // Changes directory to given input based on cwd
 	    char *dir = stripStartingChars(commands.cd_len, buffer);
 	    runtime = serverCommandCD(runtime, array_int, dir);
-	}  else if(checkRegex(commands.GET, buffer)) {
+	}  else if(checkRegex(commands.GET, buffer) || checkRegex(commands.PUT, buffer)) {
 	    struct sockaddr_in address;
 	    int addrlen = sizeof(address);
 	    getpeername(runtime.active_sockets[array_int], (struct sockaddr *)&address, (socklen_t*)&addrlen);
@@ -192,7 +192,12 @@ struct RuntimeVals handleCommand(char buffer[1024], int array_int, struct Runtim
 	    strcpy(path, runtime.cwds[array_int]);
 	    strcat(path, "/");
 	    strcat(path, stripStartingChars(commands.get_len, buffer));
-	    runtime.response = transferFile(data_sock, path);
+	    if(checkRegex(commands.GET, buffer)){
+		runtime.response = transferFile(data_sock, path);
+	    } else {
+		runtime.response = receiveFile(data_sock, path);
+	    }
+	    
 	}else {
 	    runtime.response = "Invalid FTP command\n";
 	}

@@ -17,7 +17,7 @@ int connectToSocket(const char* ip_addr, int PORT);
 
 char* transferFile(int socket, char *path);
 
-void receiveFile(int socket, char *path);
+char* receiveFile(int socket, char *path);
 
 struct CommandRegex compileAllCommandChecks();
 
