@@ -1,6 +1,0 @@
-# Ignore everything in this directory
-*
-# Except this file
-!.gitignore
-
-# This leaves the Build directory empty on the remote, but allows it to be pulled onto a machine for building purposes

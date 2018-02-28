@@ -1,0 +1,3 @@
+[submodule "C-FTP"]
+	path = C-FTP
+	url = git@github.com:Helw150/C-FTP.git
