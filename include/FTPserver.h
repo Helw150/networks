@@ -4,11 +4,6 @@ placeholder server include file
 
 #define MAX_USERS 500
 
-struct SetupVals {
-    int server_fd, addrlen;
-    struct sockaddr_in address;
-};
-
 struct User {
     char *name, *password;
  };

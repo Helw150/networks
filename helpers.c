@@ -1,10 +1,48 @@
 #include <stdio.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
 #include <helpers.h>
 
 #define PATH_MAX 1024
 
+
+struct SetupVals setupAndBind(int port_number, int opt){
+    struct SetupVals setup;
+    setup.addrlen = sizeof(setup.address);
+    // Creating socket file descriptor
+    if ((setup.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+	{
+	    perror("socket failed");
+	    exit(EXIT_FAILURE);
+	}
+
+    // Forcefully attaching socket to the port 8080
+    if (setsockopt(setup.server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+		   &opt, sizeof(opt)))
+	{
+	    perror("setsockopt");
+	    exit(EXIT_FAILURE);
+	}
+    setup.address.sin_family = AF_INET;
+    setup.address.sin_addr.s_addr = INADDR_ANY;
+    setup.address.sin_port = htons(port_number);
+
+    // Forcefully attaching socket to the port 8080
+    if (bind(setup.server_fd, (struct sockaddr *)&setup.address, sizeof(setup.address)) < 0)
+	{
+	    perror("bind failed");
+	    exit(EXIT_FAILURE);
+	}
+    // Setup listener on a master socket and let 3 people wait there
+    if (listen(setup.server_fd, 3) < 0)
+	{
+	    perror("listen");
+	    exit(EXIT_FAILURE);
+	}
+    return setup;
+}
 
 // Turning answer from https://stackoverflow.com/questions/1085083/regular-expressions-in-c-examples into a function
 regex_t compileRegex(char *regex){
@@ -73,7 +111,6 @@ char *lsCommand(char *cwd){
 	return "wrong command usage!\n";
 
     char *response = (char *) malloc(sizeof(char) * 10000);
-    strcpy(response, "successfully executed!\n");
     while (fgets(path, PATH_MAX, fp) != NULL)
 	strcat(response, path);
     status = pclose(fp);

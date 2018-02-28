@@ -6,6 +6,13 @@ regex_t compileRegex(char *regex);
 
 int checkRegex(regex_t regex, char *check_string);
 
+struct SetupVals {
+    int server_fd, addrlen;
+    struct sockaddr_in address;
+};
+
+struct SetupVals setupAndBind(int port_number, int opt);
+
 struct CommandRegex compileAllCommandChecks();
 
 struct CommandRegex {

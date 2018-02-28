@@ -65,7 +65,7 @@ int main(int argc, char const *argv[])
 	}
     int data_port;
     getsockname(sock, (struct sockaddr *)&address, sizeof(address));
-    data_port = ntohs(address.sin_port);
+    data_port = ntohs(address.sin_port)+1;
     char input[128];
     while(1){
 	memset(&buffer[0], 0, sizeof(buffer));
