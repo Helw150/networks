@@ -13,6 +13,8 @@ struct SetupVals {
 
 struct SetupVals setupAndBind(int port_number, int opt);
 
+int connectToSocket(const char* ip_addr, int PORT);
+
 struct CommandRegex compileAllCommandChecks();
 
 struct CommandRegex {
